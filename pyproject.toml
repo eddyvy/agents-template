@@ -15,6 +15,10 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
+[tool.mypy]
+strict = true
+python_version = "3.14"
+
 [tool.fastapi]
 entrypoint = "app.main:app"
 
