@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["fastapi[standard]"]
+dependencies = [
+    "fastapi[standard]",
+    "pydantic-settings>=2.14.0",
+]
 
 [dependency-groups]
 dev = [
@@ -24,6 +27,7 @@ asyncio_mode = "auto"
 [tool.mypy]
 strict = true
 python_version = "3.14"
+plugins = ["pydantic.mypy"]
 
 [tool.fastapi]
 entrypoint = "app.main:app"
