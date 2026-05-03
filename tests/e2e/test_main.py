@@ -5,7 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.config import Settings
-from app.main import app
+from app.app import app
 
 TEST_API_KEY = "test-secret-key"
 

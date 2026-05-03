@@ -1,4 +1,4 @@
-from app.main import health, root
+from app.app import health, root
 
 
 async def test_root_returns_message() -> None:

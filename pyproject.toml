@@ -30,7 +30,7 @@ python_version = "3.14"
 plugins = ["pydantic.mypy"]
 
 [tool.fastapi]
-entrypoint = "app.main:app"
+entrypoint = "app.app:app"
 
 [tool.uv.workspace]
 members = ["agents-template"]
