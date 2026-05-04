@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.config import Settings
 from app.app import app
+from app.config import Settings
 
 TEST_API_KEY = "test-secret-key"
 

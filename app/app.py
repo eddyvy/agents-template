@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
+from app.routers import weather
 
 app = FastAPI()
 
@@ -33,3 +34,6 @@ async def root() -> dict[str, str]:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "UP"}
+
+
+app.include_router(weather.router)

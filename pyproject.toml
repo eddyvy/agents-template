@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "deepagents>=0.5.6",
+    "langchain-deepseek>=0.1.0",
     "fastapi[standard]",
     "pydantic-settings>=2.14.0",
 ]
