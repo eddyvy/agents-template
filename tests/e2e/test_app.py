@@ -5,7 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.app import app
-from app.config import Settings
+from app.settings.settings import Settings
 
 TEST_API_KEY = "test-secret-key"
 
@@ -19,7 +19,7 @@ def mock_settings() -> MagicMock:
 
 @pytest.fixture
 async def client(mock_settings: MagicMock) -> AsyncGenerator[AsyncClient]:
-    with patch("app.main.get_settings", return_value=mock_settings):
+    with patch("app.app.get_settings", return_value=mock_settings):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:

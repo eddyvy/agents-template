@@ -3,10 +3,11 @@ from collections.abc import Awaitable, Callable
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import JSONResponse
 
-from app.config import get_settings
-from app.routers import weather
+import app.routers.weather as weather
+from app.core.lifespan import lifespan
+from app.settings.api import get_settings
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 PUBLIC_PATHS = {"/health"}
 
@@ -18,7 +19,8 @@ async def api_key_middleware(
 ) -> Response:
     if request.url.path not in PUBLIC_PATHS:
         api_key = request.headers.get("X-AGENTS-API-KEY")
-        if not api_key or api_key != get_settings().agents_api_key:
+        settings = get_settings(request.app)
+        if not api_key or api_key != settings.agents_api_key:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": "Invalid or missing API key"},

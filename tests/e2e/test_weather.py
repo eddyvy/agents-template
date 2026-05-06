@@ -5,9 +5,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.app import app
-from app.config import Settings, get_settings
+from app.settings.settings import Settings, get_settings
 
 TEST_API_KEY = "test-secret-key"
+TEST_THREAD_ID = "test-thread-123"
 
 
 @pytest.fixture
@@ -20,7 +21,11 @@ def mock_settings() -> MagicMock:
 @pytest.fixture
 async def auth_client(mock_settings: MagicMock) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides[get_settings] = lambda: mock_settings
-    with patch("app.app.get_settings", return_value=mock_settings):
+    with (
+        patch("app.app.get_settings", return_value=mock_settings),
+        patch("app.database.init_db", new_callable=AsyncMock),
+        patch("app.routers.weather.get_checkpointer", return_value=MagicMock()),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
@@ -44,7 +49,10 @@ async def test_invoke_no_auth_returns_401() -> None:
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
-        response = await client.post("/weather/invoke", json={"message": "hello"})
+        response = await client.post(
+            "/weather/invoke",
+            json={"message": "hello", "thread_id": TEST_THREAD_ID},
+        )
         assert response.status_code == 401
 
 
@@ -53,7 +61,8 @@ async def test_invoke_returns_200(auth_client: AsyncClient) -> None:
 
     with patch("app.routers.weather.get_weather_agent", return_value=mock_agent):
         response = await auth_client.post(
-            "/weather/invoke", json={"message": "What's the weather in SF?"}
+            "/weather/invoke",
+            json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
         )
 
     assert response.status_code == 200
@@ -64,7 +73,8 @@ async def test_invoke_returns_agent_response(auth_client: AsyncClient) -> None:
 
     with patch("app.routers.weather.get_weather_agent", return_value=mock_agent):
         response = await auth_client.post(
-            "/weather/invoke", json={"message": "What's the weather in SF?"}
+            "/weather/invoke",
+            json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
         )
 
     assert response.json() == {"response": "It's always sunny in SF!"}
