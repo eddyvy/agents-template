@@ -5,6 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.app import app
+from app.core.auth import API_KEY_HEADER
 from app.settings.settings import Settings
 
 TEST_API_KEY = "test-secret-key"
@@ -36,7 +37,7 @@ async def client(inject_settings: None) -> AsyncGenerator[AsyncClient]:
 
 @pytest.fixture
 async def auth_client(client: AsyncClient) -> AsyncClient:
-    client.headers.update({"X-AGENTS-API-KEY": TEST_API_KEY})
+    client.headers.update({API_KEY_HEADER: TEST_API_KEY})
     return client
 
 
@@ -55,6 +56,7 @@ async def test_invoke_no_auth_returns_401(client: AsyncClient) -> None:
         json={"message": "hello", "thread_id": TEST_THREAD_ID},
     )
     assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or missing API key"}
 
 
 async def test_invoke_returns_200(auth_client: AsyncClient) -> None:

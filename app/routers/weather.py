@@ -1,13 +1,11 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from app.security import verify_api_key
 from app.weather_agent.api import get_weather_agent
 
 router = APIRouter(
     prefix="/weather",
     tags=["weather"],
-    dependencies=[Depends(verify_api_key)],
 )
 
 
