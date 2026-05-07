@@ -5,7 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.app import app
-from app.settings.settings import Settings, get_settings
+from app.settings.settings import Settings
 
 TEST_API_KEY = "test-secret-key"
 TEST_THREAD_ID = "test-thread-123"
@@ -19,41 +19,42 @@ def mock_settings() -> MagicMock:
 
 
 @pytest.fixture
-async def auth_client(mock_settings: MagicMock) -> AsyncGenerator[AsyncClient]:
-    app.dependency_overrides[get_settings] = lambda: mock_settings
-    with (
-        patch("app.app.get_settings", return_value=mock_settings),
-        patch("app.database.init_db", new_callable=AsyncMock),
-        patch("app.routers.weather.get_checkpointer", return_value=MagicMock()),
-    ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
-            ac.headers.update({"X-AGENTS-API-KEY": TEST_API_KEY})
-            yield ac
-    app.dependency_overrides.clear()
+def inject_settings(mock_settings: MagicMock):
+    app.state.settings = mock_settings
+    yield
+    if hasattr(app.state, "settings"):
+        delattr(app.state, "settings")
+
+
+@pytest.fixture
+async def client(inject_settings: None) -> AsyncGenerator[AsyncClient]:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
+
+
+@pytest.fixture
+async def auth_client(client: AsyncClient) -> AsyncClient:
+    client.headers.update({"X-AGENTS-API-KEY": TEST_API_KEY})
+    return client
 
 
 def make_mock_agent(response_content: str) -> MagicMock:
-    mock_message = MagicMock()
-    mock_message.content = response_content
     mock_agent = MagicMock()
-    mock_agent.ainvoke = AsyncMock(return_value={"messages": [mock_message]})
+    mock_agent.ainvoke = AsyncMock(return_value=response_content)
     return mock_agent
 
 
 # --- POST /weather/invoke ---
 
 
-async def test_invoke_no_auth_returns_401() -> None:
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        response = await client.post(
-            "/weather/invoke",
-            json={"message": "hello", "thread_id": TEST_THREAD_ID},
-        )
-        assert response.status_code == 401
+async def test_invoke_no_auth_returns_401(client: AsyncClient) -> None:
+    response = await client.post(
+        "/weather/invoke",
+        json={"message": "hello", "thread_id": TEST_THREAD_ID},
+    )
+    assert response.status_code == 401
 
 
 async def test_invoke_returns_200(auth_client: AsyncClient) -> None:
@@ -82,4 +83,12 @@ async def test_invoke_returns_agent_response(auth_client: AsyncClient) -> None:
 
 async def test_invoke_missing_message_returns_422(auth_client: AsyncClient) -> None:
     response = await auth_client.post("/weather/invoke", json={})
+    assert response.status_code == 422
+
+
+async def test_invoke_missing_thread_id_returns_422(auth_client: AsyncClient) -> None:
+    response = await auth_client.post(
+        "/weather/invoke",
+        json={"message": "What's the weather in SF?"},
+    )
     assert response.status_code == 422

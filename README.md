@@ -34,7 +34,7 @@ Levanta el servidor en `http://127.0.0.1:8000` con recarga automática (hot-relo
 
 ```bash
 uv run pytest -v                      # todos los tests
-uv run pytest tests/test_main.py      # solo unitarios
+uv run pytest tests/ --ignore=tests/e2e/  # solo unitarios
 uv run pytest tests/e2e/              # solo e2e
 ```
 
@@ -43,10 +43,15 @@ uv run pytest tests/e2e/              # solo e2e
 ```
 tests/
 ├── __init__.py
-├── test_main.py          # Unit tests — prueban las funciones directamente
+├── test_app.py           # Unit tests básicos (endpoints puros)
+├── test_checkpointer.py  # Ciclo de vida del checkpointer
+├── test_lifespan.py      # Orquestación startup/shutdown
+├── test_security.py      # Validación de API key
+├── test_weather_agent.py # Lógica del weather agent
 └── e2e/
     ├── __init__.py
-    └── test_main.py      # E2E tests — prueban los endpoints HTTP completos
+    ├── test_app.py
+    └── test_weather.py   # E2E tests — prueban los endpoints HTTP completos
 ```
 
 Los tests e2e usan `httpx.AsyncClient` con `ASGITransport`, lo que permite lanzar requests HTTP reales contra la app sin necesidad de un servidor externo. Todo el stack de FastAPI (routing, middlewares, serialización) se ejecuta en memoria.
@@ -83,13 +88,23 @@ Configurado en modo `strict`: requiere anotaciones de tipo en todas las funcione
 agents-template/
 ├── app/
 │   ├── __init__.py
-│   └── main.py        # Entrypoint de FastAPI
+│   ├── app.py             # Entrypoint de FastAPI
+│   ├── core/
+│   ├── routers/
+│   ├── settings/
+│   ├── checkpointer/
+│   └── weather_agent/
 ├── tests/
 │   ├── __init__.py
-│   ├── test_main.py   # Unit tests
+│   ├── test_app.py
+│   ├── test_checkpointer.py
+│   ├── test_lifespan.py
+│   ├── test_security.py
+│   ├── test_weather_agent.py
 │   └── e2e/
 │       ├── __init__.py
-│       └── test_main.py  # E2E tests
+│       ├── test_app.py
+│       └── test_weather.py
 ├── pyproject.toml     # Configuración del proyecto, dependencias y herramientas
 └── README.md
 ```

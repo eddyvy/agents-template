@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -18,12 +18,19 @@ def mock_settings() -> MagicMock:
 
 
 @pytest.fixture
-async def client(mock_settings: MagicMock) -> AsyncGenerator[AsyncClient]:
-    with patch("app.app.get_settings", return_value=mock_settings):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
-            yield ac
+def inject_settings(mock_settings: MagicMock):
+    app.state.settings = mock_settings
+    yield
+    if hasattr(app.state, "settings"):
+        delattr(app.state, "settings")
+
+
+@pytest.fixture
+async def client(inject_settings: None) -> AsyncGenerator[AsyncClient]:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
 
 
 @pytest.fixture
@@ -56,6 +63,7 @@ async def test_health_with_auth_returns_200(auth_client: AsyncClient) -> None:
 async def test_root_no_auth_returns_401(client: AsyncClient) -> None:
     response = await client.get("/")
     assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or missing API key"}
 
 
 async def test_root_wrong_key_returns_401(client: AsyncClient) -> None:
