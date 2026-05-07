@@ -1,8 +1,14 @@
-from typing import Any, cast
-
 from deepagents import create_deep_agent
+from langchain.agents.middleware.types import (
+    AgentState,
+    _InputAgentState,
+    _OutputAgentState,
+)
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_deepseek import ChatDeepSeek
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import GraphOutput
 
 from app.settings.settings import Settings
 
@@ -17,7 +23,14 @@ class WeatherAgent:
         model = ChatDeepSeek(
             model_name="deepseek-chat", api_key=settings.deepseek_api_key
         )
-        self.agent = create_deep_agent(
+        self.model = model
+        self.checkpointer = checkpointer
+        self.agent: CompiledStateGraph[
+            AgentState[BaseMessage],
+            None,
+            _InputAgentState,
+            _OutputAgentState[BaseMessage],
+        ] = create_deep_agent(
             model=model,
             tools=[get_weather],
             system_prompt="You are a helpful assistant",
@@ -25,23 +38,16 @@ class WeatherAgent:
         )
 
     async def ainvoke(self, message: str, thread_id: str) -> str:
-        result = cast(
-            dict[str, Any],
-            await self.agent.ainvoke(
-                {"messages": [{"role": "user", "content": message}]},
-                config={"configurable": {"thread_id": thread_id}},
-            ),
+        input_state: _InputAgentState = {
+            "messages": [HumanMessage(content=message)],
+        }
+        result: GraphOutput[_OutputAgentState[BaseMessage]] = await self.agent.ainvoke(
+            input=input_state,
+            config={"configurable": {"thread_id": thread_id}},
+            version="v2",
         )
-        messages = cast(list[Any], result.get("messages", []))
-        if not messages:
+        messages = result.value.get("messages", [])
+        if not messages or len(messages) == 0:
             return ""
 
-        last_message = messages[-1]
-        content = getattr(last_message, "content", None)
-        if isinstance(content, str):
-            return content
-        if isinstance(last_message, dict):
-            dict_content = last_message.get("content")
-            if isinstance(dict_content, str):
-                return dict_content
-        return str(content) if content is not None else str(last_message)
+        return str(messages[-1].content)

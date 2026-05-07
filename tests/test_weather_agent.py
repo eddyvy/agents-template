@@ -1,8 +1,10 @@
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.types import GraphOutput
 
+from app.settings.settings import Settings
 from app.weather_agent.api import get_weather_agent, setup_weather_agent
 from app.weather_agent.weather_agent import WeatherAgent, get_weather
 
@@ -15,10 +17,16 @@ def test_get_weather_returns_expected_text() -> None:
 async def test_weather_agent_ainvoke_uses_expected_payload() -> None:
     internal_agent = MagicMock()
     internal_agent.ainvoke = AsyncMock(
-        return_value={"messages": [MagicMock(content="It's sunny today")]}  # noqa: S106
+        return_value=GraphOutput(
+            value={"messages": [AIMessage(content="It's sunny today")]}
+        )  # noqa: S106
     )
 
-    settings = SimpleNamespace(deepseek_api_key="deepseek-test-key")
+    settings = Settings.model_construct(
+        agents_api_key="agents-test-key",
+        deepseek_api_key="deepseek-test-key",
+        database_url="postgresql://postgres:postgres@localhost:5432/test",
+    )
     checkpointer = MagicMock()
 
     with (
@@ -38,10 +46,19 @@ async def test_weather_agent_ainvoke_uses_expected_payload() -> None:
 
     result = await agent.ainvoke("How is the weather?", "thread-123")
 
-    internal_agent.ainvoke.assert_awaited_once_with(
-        {"messages": [{"role": "user", "content": "How is the weather?"}]},
-        config={"configurable": {"thread_id": "thread-123"}},
-    )
+    internal_agent.ainvoke.assert_awaited_once()
+    call_args = internal_agent.ainvoke.await_args
+    assert call_args.args == ()
+    payload = call_args.kwargs["input"]
+    assert isinstance(payload, dict)
+    assert "messages" in payload
+    messages = payload["messages"]
+    assert isinstance(messages, list)
+    assert len(messages) == 1
+    assert isinstance(messages[0], HumanMessage)
+    assert messages[0].content == "How is the weather?"
+    assert call_args.kwargs["config"] == {"configurable": {"thread_id": "thread-123"}}
+    assert call_args.kwargs["version"] == "v2"
     assert result == "It's sunny today"
 
 
