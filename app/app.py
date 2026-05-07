@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 
-import app.routers.weather as weather
 from app.core.auth import auth_api_key_middleware
 from app.core.lifespan import lifespan
+from app.weather_agent.handler import router as weather_agent_router
 
 app = FastAPI(lifespan=lifespan)
 
@@ -23,4 +23,4 @@ async def health() -> dict[str, str]:
     return {"status": "UP"}
 
 
-app.include_router(weather.router)
+app.include_router(weather_agent_router)

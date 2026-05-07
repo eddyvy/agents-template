@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from app.weather_agent.api import get_weather_agent
 
 router = APIRouter(
-    prefix="/weather",
-    tags=["weather"],
+    prefix="/weather-agent",
+    tags=["weather-agent"],
 )
 
 

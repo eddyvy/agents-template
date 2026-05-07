@@ -47,12 +47,12 @@ def make_mock_agent(response_content: str) -> MagicMock:
     return mock_agent
 
 
-# --- POST /weather/invoke ---
+# --- POST /weather-agent/invoke ---
 
 
 async def test_invoke_no_auth_returns_401(client: AsyncClient) -> None:
     response = await client.post(
-        "/weather/invoke",
+        "/weather-agent/invoke",
         json={"message": "hello", "thread_id": TEST_THREAD_ID},
     )
     assert response.status_code == 401
@@ -62,9 +62,9 @@ async def test_invoke_no_auth_returns_401(client: AsyncClient) -> None:
 async def test_invoke_returns_200(auth_client: AsyncClient) -> None:
     mock_agent = make_mock_agent("It's always sunny in SF!")
 
-    with patch("app.routers.weather.get_weather_agent", return_value=mock_agent):
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
         response = await auth_client.post(
-            "/weather/invoke",
+            "/weather-agent/invoke",
             json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
         )
 
@@ -74,9 +74,9 @@ async def test_invoke_returns_200(auth_client: AsyncClient) -> None:
 async def test_invoke_returns_agent_response(auth_client: AsyncClient) -> None:
     mock_agent = make_mock_agent("It's always sunny in SF!")
 
-    with patch("app.routers.weather.get_weather_agent", return_value=mock_agent):
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
         response = await auth_client.post(
-            "/weather/invoke",
+            "/weather-agent/invoke",
             json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
         )
 
@@ -84,13 +84,13 @@ async def test_invoke_returns_agent_response(auth_client: AsyncClient) -> None:
 
 
 async def test_invoke_missing_message_returns_422(auth_client: AsyncClient) -> None:
-    response = await auth_client.post("/weather/invoke", json={})
+    response = await auth_client.post("/weather-agent/invoke", json={})
     assert response.status_code == 422
 
 
 async def test_invoke_missing_thread_id_returns_422(auth_client: AsyncClient) -> None:
     response = await auth_client.post(
-        "/weather/invoke",
+        "/weather-agent/invoke",
         json={"message": "What's the weather in SF?"},
     )
     assert response.status_code == 422
