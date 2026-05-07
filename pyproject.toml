@@ -5,12 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "deepagents>=0.5.6",
-    "langchain-deepseek>=0.1.0",
-    "fastapi[standard]",
-    "pydantic-settings>=2.14.0",
-    "langgraph-checkpoint-postgres>=3.0.5",
-    "psycopg[binary]>=3.3.4",
+  "deepagents>=0.5.6",
+  "langchain-deepseek>=0.1.0",
+  "fastapi[standard]",
+  "pydantic-settings>=2.14.0",
+  "langgraph-checkpoint-postgres>=3.0.5",
+  "psycopg[binary]>=3.3.4",
 ]
 
 [dependency-groups]
@@ -20,6 +20,7 @@ dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.25",
   "httpx>=0.28",
+  "pytest-cov>=7.1.0",
 ]
 
 [tool.ruff.lint]
@@ -27,6 +28,7 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--cov=app --cov-report=term-missing --cov-fail-under=75"
 
 [tool.mypy]
 strict = true

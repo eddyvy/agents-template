@@ -38,6 +38,20 @@ uv run pytest tests/ --ignore=tests/e2e/  # solo unitarios
 uv run pytest tests/e2e/              # solo e2e
 ```
 
+### Coverage
+
+El proyecto ya ejecuta coverage por defecto cuando corres `pytest`.
+
+Regla activa:
+
+- Mide cobertura sobre `app/`
+- Muestra líneas faltantes en consola
+- Exige **más de 75%** (umbral configurado en `76%`)
+
+```bash
+uv run pytest
+```
+
 ### Estructura de tests
 
 ```
