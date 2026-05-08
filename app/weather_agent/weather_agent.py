@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator
+
 from deepagents import create_deep_agent
 from langchain.agents.middleware.types import (
     AgentState,
@@ -5,6 +7,7 @@ from langchain.agents.middleware.types import (
     _OutputAgentState,
 )
 from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.runnables.schema import StreamEvent
 from langchain_deepseek import ChatDeepSeek
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
@@ -21,7 +24,7 @@ def get_weather(city: str) -> str:
 class WeatherAgent:
     def __init__(self, settings: Settings, checkpointer: AsyncPostgresSaver):
         model = ChatDeepSeek(
-            model_name="deepseek-chat", api_key=settings.deepseek_api_key
+            model_name="deepseek-v4-pro", api_key=settings.deepseek_api_key
         )
         self.model = model
         self.checkpointer = checkpointer
@@ -51,3 +54,17 @@ class WeatherAgent:
             return ""
 
         return str(messages[-1].content)
+
+    async def astream(
+        self, message: str, thread_id: str
+    ) -> AsyncGenerator[StreamEvent]:
+        input_state: _InputAgentState = {
+            "messages": [HumanMessage(content=message)],
+        }
+        async for event in self.agent.astream(
+            input=input_state,
+            config={"configurable": {"thread_id": thread_id}},
+            version="v2",
+            stream_mode="messages",
+        ):
+            yield f"data: {str(event)}\n\n"

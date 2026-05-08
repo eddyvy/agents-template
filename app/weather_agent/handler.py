@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.weather_agent.api import get_weather_agent
@@ -23,3 +24,19 @@ async def invoke_weather_agent(body: InvokeRequest, request: Request) -> InvokeR
     agent = get_weather_agent(request.app)
     result = await agent.ainvoke(body.message, body.thread_id)
     return InvokeResponse(response=result)
+
+
+@router.post("/stream")
+async def stream_weather_agent(
+    body: InvokeRequest, request: Request
+) -> StreamingResponse:
+    agent = get_weather_agent(request.app)
+
+    return StreamingResponse(
+        agent.astream(body.message, body.thread_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

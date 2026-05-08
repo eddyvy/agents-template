@@ -47,6 +47,16 @@ def make_mock_agent(response_content: str) -> MagicMock:
     return mock_agent
 
 
+def make_mock_streaming_agent(events: list[str]) -> MagicMock:
+    async def _astream(message: str, thread_id: str):
+        for event in events:
+            yield event
+
+    mock_agent = MagicMock()
+    mock_agent.astream = _astream
+    return mock_agent
+
+
 # --- POST /weather-agent/invoke ---
 
 
@@ -94,3 +104,78 @@ async def test_invoke_missing_thread_id_returns_422(auth_client: AsyncClient) ->
         json={"message": "What's the weather in SF?"},
     )
     assert response.status_code == 422
+
+
+# --- POST /weather-agent/stream ---
+
+
+async def test_stream_no_auth_returns_401(client: AsyncClient) -> None:
+    response = await client.post(
+        "/weather-agent/stream",
+        json={"message": "hello", "thread_id": TEST_THREAD_ID},
+    )
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or missing API key"}
+
+
+async def test_stream_missing_message_returns_422(auth_client: AsyncClient) -> None:
+    response = await auth_client.post("/weather-agent/stream", json={})
+    assert response.status_code == 422
+
+
+async def test_stream_missing_thread_id_returns_422(auth_client: AsyncClient) -> None:
+    response = await auth_client.post(
+        "/weather-agent/stream",
+        json={"message": "What's the weather in SF?"},
+    )
+    assert response.status_code == 422
+
+
+async def test_stream_returns_200(auth_client: AsyncClient) -> None:
+    mock_agent = make_mock_streaming_agent(["data: chunk\n\n"])
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        response = await auth_client.post(
+            "/weather-agent/stream",
+            json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
+        )
+
+    assert response.status_code == 200
+
+
+async def test_stream_returns_event_stream_content_type(
+    auth_client: AsyncClient,
+) -> None:
+    mock_agent = make_mock_streaming_agent([])
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        response = await auth_client.post(
+            "/weather-agent/stream",
+            json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
+        )
+
+    assert "text/event-stream" in response.headers["content-type"]
+
+
+async def test_stream_yields_sse_formatted_events(auth_client: AsyncClient) -> None:
+    mock_agent = make_mock_streaming_agent(["data: event1\n\n", "data: event2\n\n"])
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        response = await auth_client.post(
+            "/weather-agent/stream",
+            json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
+        )
+
+    assert response.text == "data: event1\n\ndata: event2\n\n"
+
+
+async def test_stream_empty_response_when_no_events(auth_client: AsyncClient) -> None:
+    mock_agent = make_mock_streaming_agent([])
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        response = await auth_client.post(
+            "/weather-agent/stream",
+            json={"message": "What's the weather in SF?", "thread_id": TEST_THREAD_ID},
+        )
+
+    assert response.text == ""
