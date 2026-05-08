@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 
 from app.weather_agent.api import get_weather_agent
@@ -40,3 +41,13 @@ async def stream_weather_agent(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/threads/{thread_id}")
+async def get_thread_history(
+    thread_id: str, request: Request
+) -> dict[str, list[BaseMessage]]:
+    agent = get_weather_agent(request.app)
+    messages = await agent.get_messages(thread_id)
+
+    return {"messages": messages}

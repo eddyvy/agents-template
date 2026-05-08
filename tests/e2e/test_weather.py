@@ -179,3 +179,64 @@ async def test_stream_empty_response_when_no_events(auth_client: AsyncClient) ->
         )
 
     assert response.text == ""
+
+
+# --- GET /weather-agent/threads/{thread_id} ---
+
+
+async def test_get_thread_history_no_auth_returns_401(client: AsyncClient) -> None:
+    response = await client.get(f"/weather-agent/threads/{TEST_THREAD_ID}")
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or missing API key"}
+
+
+async def test_get_thread_history_returns_200(auth_client: AsyncClient) -> None:
+    mock_agent = MagicMock()
+    mock_agent.get_messages = AsyncMock(return_value=[])
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        response = await auth_client.get(f"/weather-agent/threads/{TEST_THREAD_ID}")
+
+    assert response.status_code == 200
+
+
+async def test_get_thread_history_calls_agent_with_thread_id(
+    auth_client: AsyncClient,
+) -> None:
+    mock_agent = MagicMock()
+    mock_agent.get_messages = AsyncMock(return_value=[])
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        await auth_client.get(f"/weather-agent/threads/{TEST_THREAD_ID}")
+
+    mock_agent.get_messages.assert_awaited_once_with(TEST_THREAD_ID)
+
+
+async def test_get_thread_history_returns_messages(auth_client: AsyncClient) -> None:
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    messages = [
+        HumanMessage(content="What's the weather in SF?"),
+        AIMessage(content="It's always sunny in SF!"),
+    ]
+    mock_agent = MagicMock()
+    mock_agent.get_messages = AsyncMock(return_value=messages)
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        response = await auth_client.get(f"/weather-agent/threads/{TEST_THREAD_ID}")
+
+    body = response.json()
+    assert "messages" in body
+    assert len(body["messages"]) == 2
+
+
+async def test_get_thread_history_returns_empty_messages_for_unknown_thread(
+    auth_client: AsyncClient,
+) -> None:
+    mock_agent = MagicMock()
+    mock_agent.get_messages = AsyncMock(return_value=[])
+
+    with patch("app.weather_agent.handler.get_weather_agent", return_value=mock_agent):
+        response = await auth_client.get("/weather-agent/threads/unknown-thread")
+
+    assert response.json() == {"messages": []}

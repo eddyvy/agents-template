@@ -7,7 +7,6 @@ from langchain.agents.middleware.types import (
     _OutputAgentState,
 )
 from langchain_core.messages import BaseMessage, HumanMessage
-from langchain_core.runnables.schema import StreamEvent
 from langchain_deepseek import ChatDeepSeek
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph.state import CompiledStateGraph
@@ -55,9 +54,7 @@ class WeatherAgent:
 
         return str(messages[-1].content)
 
-    async def astream(
-        self, message: str, thread_id: str
-    ) -> AsyncGenerator[StreamEvent]:
+    async def astream(self, message: str, thread_id: str) -> AsyncGenerator[str]:
         input_state: _InputAgentState = {
             "messages": [HumanMessage(content=message)],
         }
@@ -68,3 +65,10 @@ class WeatherAgent:
             stream_mode="messages",
         ):
             yield f"data: {str(event)}\n\n"
+
+    async def get_messages(self, thread_id: str) -> list[BaseMessage]:
+        state = await self.agent.aget_state(
+            config={"configurable": {"thread_id": thread_id}}
+        )
+        messages: list[BaseMessage] = state.values.get("messages", [])
+        return messages

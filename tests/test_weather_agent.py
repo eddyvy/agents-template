@@ -190,3 +190,64 @@ async def test_weather_agent_astream_yields_nothing_when_no_events() -> None:
         ]
 
     assert events == []
+
+
+async def test_weather_agent_get_messages_uses_aget_state() -> None:
+    mock_state = MagicMock()
+    mock_state.values = {
+        "messages": [HumanMessage(content="hi"), AIMessage(content="hello")]
+    }
+
+    internal_agent = MagicMock()
+    internal_agent.aget_state = AsyncMock(return_value=mock_state)
+
+    settings = Settings.model_construct(
+        agents_api_key="agents-test-key",
+        deepseek_api_key="deepseek-test-key",
+        database_url="postgresql://postgres:postgres@localhost:5432/test",
+    )
+    checkpointer = MagicMock()
+
+    with (
+        patch("app.weather_agent.weather_agent.ChatDeepSeek"),
+        patch(
+            "app.weather_agent.weather_agent.create_deep_agent",
+            return_value=internal_agent,
+        ),
+    ):
+        agent = WeatherAgent(settings, checkpointer)
+        result = await agent.get_messages("thread-123")
+
+    internal_agent.aget_state.assert_awaited_once_with(
+        config={"configurable": {"thread_id": "thread-123"}}
+    )
+    assert len(result) == 2
+    assert isinstance(result[0], HumanMessage)
+    assert isinstance(result[1], AIMessage)
+
+
+async def test_weather_agent_get_messages_returns_empty_list_when_no_state() -> None:
+    mock_state = MagicMock()
+    mock_state.values = {}
+
+    internal_agent = MagicMock()
+    internal_agent.aget_state = AsyncMock(return_value=mock_state)
+
+    settings = Settings.model_construct(
+        agents_api_key="agents-test-key",
+        deepseek_api_key="deepseek-test-key",
+        database_url="postgresql://postgres:postgres@localhost:5432/test",
+    )
+    checkpointer = MagicMock()
+
+    with (
+        patch("app.weather_agent.weather_agent.ChatDeepSeek"),
+        patch(
+            "app.weather_agent.weather_agent.create_deep_agent",
+            return_value=internal_agent,
+        ),
+    ):
+        agent = WeatherAgent(settings, checkpointer)
+        result = await agent.get_messages("thread-123")
+
+    assert result == []

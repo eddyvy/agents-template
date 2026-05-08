@@ -34,6 +34,7 @@ addopts = "--import-mode=importlib --cov=app --cov-report=term-missing --cov-fai
 strict = true
 python_version = "3.14"
 plugins = ["pydantic.mypy"]
+explicit_package_bases = true
 
 [tool.fastapi]
 entrypoint = "app.app:app"
