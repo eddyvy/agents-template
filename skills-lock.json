@@ -7,6 +7,12 @@
       "skillPath": "config/skills/langchain-fundamentals/SKILL.md",
       "computedHash": "7f23a1fb935bb09221a7fb4e50d484abbe3ba93767de832b1904cf9101ff1fe2"
     },
+    "langfuse": {
+      "source": "langfuse/skills",
+      "sourceType": "github",
+      "skillPath": "skills/langfuse/SKILL.md",
+      "computedHash": "baad0018728645ecb42866c19d3ab8968274cc8297fe638d3d403c2d15ce4677"
+    },
     "langgraph-docs": {
       "source": "langchain-ai/deepagents",
       "sourceType": "github",

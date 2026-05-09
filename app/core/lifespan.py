@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.checkpointer.api import close_checkpointer, setup_checkpointer
+from app.langfuse.api import setup_langfuse
 from app.settings.api import setup_settings
 from app.weather_agent.api import setup_weather_agent
 
@@ -13,6 +14,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_settings(app)
 
     await setup_checkpointer(app)
+
+    setup_langfuse(app)
 
     setup_weather_agent(app)
 

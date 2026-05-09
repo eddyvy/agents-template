@@ -36,7 +36,8 @@ async def test_weather_agent_ainvoke_uses_expected_payload() -> None:
             return_value=internal_agent,
         ) as create_deep_agent_mock,
     ):
-        agent = WeatherAgent(settings, checkpointer)
+        callbacks = [MagicMock()]
+        agent = WeatherAgent(settings, checkpointer, callbacks)
 
     chat_model_mock.assert_called_once_with(
         model_name="deepseek-v4-pro",
@@ -57,7 +58,10 @@ async def test_weather_agent_ainvoke_uses_expected_payload() -> None:
     assert len(messages) == 1
     assert isinstance(messages[0], HumanMessage)
     assert messages[0].content == "How is the weather?"
-    assert call_args.kwargs["config"] == {"configurable": {"thread_id": "thread-123"}}
+    assert call_args.kwargs["config"] == {
+        "configurable": {"thread_id": "thread-123"},
+        "callbacks": callbacks,
+    }
     assert call_args.kwargs["version"] == "v2"
     assert result == "It's sunny today"
 
@@ -66,11 +70,15 @@ def test_setup_weather_agent_stores_instance_in_app_state() -> None:
     app = FastAPI()
     settings = MagicMock()
     checkpointer = MagicMock()
+    langfuse_handler = MagicMock()
     weather_agent = MagicMock()
 
     with (
         patch("app.weather_agent.api.get_settings", return_value=settings),
         patch("app.weather_agent.api.get_checkpointer", return_value=checkpointer),
+        patch(
+            "app.weather_agent.api.get_langfuse_handler", return_value=langfuse_handler
+        ),
         patch(
             "app.weather_agent.api.WeatherAgent",
             return_value=weather_agent,
@@ -78,7 +86,9 @@ def test_setup_weather_agent_stores_instance_in_app_state() -> None:
     ):
         setup_weather_agent(app)
 
-    weather_agent_mock.assert_called_once_with(settings, checkpointer)
+    weather_agent_mock.assert_called_once_with(
+        settings, checkpointer, [langfuse_handler]
+    )
     assert app.state.weather_agent is weather_agent
 
 
@@ -108,6 +118,7 @@ async def test_weather_agent_astream_uses_expected_payload() -> None:
     )
     checkpointer = MagicMock()
 
+    callbacks = [MagicMock()]
     with (
         patch("app.weather_agent.weather_agent.ChatDeepSeek"),
         patch(
@@ -115,7 +126,7 @@ async def test_weather_agent_astream_uses_expected_payload() -> None:
             return_value=internal_agent,
         ),
     ):
-        agent = WeatherAgent(settings, checkpointer)
+        agent = WeatherAgent(settings, checkpointer, callbacks)
         _ = [
             event async for event in agent.astream("How is the weather?", "thread-123")
         ]
@@ -127,7 +138,10 @@ async def test_weather_agent_astream_uses_expected_payload() -> None:
     assert len(messages) == 1
     assert isinstance(messages[0], HumanMessage)
     assert messages[0].content == "How is the weather?"
-    assert captured["config"] == {"configurable": {"thread_id": "thread-123"}}
+    assert captured["config"] == {
+        "configurable": {"thread_id": "thread-123"},
+        "callbacks": callbacks,
+    }
     assert captured["version"] == "v2"
     assert captured["stream_mode"] == "messages"
 
@@ -154,7 +168,7 @@ async def test_weather_agent_astream_formats_events_as_sse() -> None:
             return_value=internal_agent,
         ),
     ):
-        agent = WeatherAgent(settings, checkpointer)
+        agent = WeatherAgent(settings, checkpointer, [])
         events = [
             event async for event in agent.astream("How is the weather?", "thread-123")
         ]
@@ -184,7 +198,7 @@ async def test_weather_agent_astream_yields_nothing_when_no_events() -> None:
             return_value=internal_agent,
         ),
     ):
-        agent = WeatherAgent(settings, checkpointer)
+        agent = WeatherAgent(settings, checkpointer, [])
         events = [
             event async for event in agent.astream("How is the weather?", "thread-123")
         ]
@@ -208,6 +222,7 @@ async def test_weather_agent_get_messages_uses_aget_state() -> None:
     )
     checkpointer = MagicMock()
 
+    callbacks = [MagicMock()]
     with (
         patch("app.weather_agent.weather_agent.ChatDeepSeek"),
         patch(
@@ -215,7 +230,7 @@ async def test_weather_agent_get_messages_uses_aget_state() -> None:
             return_value=internal_agent,
         ),
     ):
-        agent = WeatherAgent(settings, checkpointer)
+        agent = WeatherAgent(settings, checkpointer, callbacks)
         result = await agent.get_messages("thread-123")
 
     internal_agent.aget_state.assert_awaited_once_with(
@@ -247,7 +262,7 @@ async def test_weather_agent_get_messages_returns_empty_list_when_no_state() -> 
             return_value=internal_agent,
         ),
     ):
-        agent = WeatherAgent(settings, checkpointer)
+        agent = WeatherAgent(settings, checkpointer, [])
         result = await agent.get_messages("thread-123")
 
     assert result == []

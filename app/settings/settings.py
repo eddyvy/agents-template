@@ -7,3 +7,6 @@ class Settings(BaseSettings):
     agents_api_key: str
     deepseek_api_key: str
     database_url: str
+    langfuse_secret_key: str
+    langfuse_public_key: str
+    langfuse_base_url: str

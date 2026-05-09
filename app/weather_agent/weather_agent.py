@@ -6,6 +6,7 @@ from langchain.agents.middleware.types import (
     _InputAgentState,
     _OutputAgentState,
 )
+from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_deepseek import ChatDeepSeek
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -21,12 +22,18 @@ def get_weather(city: str) -> str:
 
 
 class WeatherAgent:
-    def __init__(self, settings: Settings, checkpointer: AsyncPostgresSaver):
+    def __init__(
+        self,
+        settings: Settings,
+        checkpointer: AsyncPostgresSaver,
+        callbacks: list[BaseCallbackHandler],
+    ) -> None:
         model = ChatDeepSeek(
             model_name="deepseek-v4-pro", api_key=settings.deepseek_api_key
         )
         self.model = model
         self.checkpointer = checkpointer
+        self.callbacks = callbacks
         self.agent: CompiledStateGraph[
             AgentState[BaseMessage],
             None,
@@ -45,7 +52,10 @@ class WeatherAgent:
         }
         result: GraphOutput[_OutputAgentState[BaseMessage]] = await self.agent.ainvoke(
             input=input_state,
-            config={"configurable": {"thread_id": thread_id}},
+            config={
+                "configurable": {"thread_id": thread_id},
+                "callbacks": self.callbacks,
+            },
             version="v2",
         )
         messages = result.value.get("messages", [])
@@ -60,7 +70,10 @@ class WeatherAgent:
         }
         async for event in self.agent.astream(
             input=input_state,
-            config={"configurable": {"thread_id": thread_id}},
+            config={
+                "configurable": {"thread_id": thread_id},
+                "callbacks": self.callbacks,
+            },
             version="v2",
             stream_mode="messages",
         ):
@@ -68,7 +81,9 @@ class WeatherAgent:
 
     async def get_messages(self, thread_id: str) -> list[BaseMessage]:
         state = await self.agent.aget_state(
-            config={"configurable": {"thread_id": thread_id}}
+            config={
+                "configurable": {"thread_id": thread_id},
+            }
         )
         messages: list[BaseMessage] = state.values.get("messages", [])
         return messages
